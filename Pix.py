@@ -1,170 +1,114 @@
 import streamlit as st
 
-# =============================
-# CONFIGURAÇÃO DA PÁGINA
-# =============================
-st.set_page_config(page_title="Football Studio – Sistema Elite", layout="centered")
+st.set_page_config("🎴 Football Studio PRO", layout="wide")
 
-st.title("🎴 Football Studio – SISTEMA ELITE COMPLETO")
-st.caption("Leitura profissional • padrões • empates • decisão visual")
+# =====================
+# MEMÓRIA
+# =====================
+if "h" not in st.session_state:
+    st.session_state.h = []
 
-# =============================
-# MAPAS VISUAIS
-# =============================
-EMOJIS = {
-    "P": "🔵",
-    "B": "🔴",
-    "T": "🟡"
-}
+def add(r):
+    st.session_state.h.insert(0, r)
+    st.session_state.h = st.session_state.h[:120]
 
-SUGESTAO = {
-    "P": "🔵 **APOSTAR PLAYER**",
-    "B": "🔴 **APOSTAR BANKER**",
-    "T": "🟡 **EMPATE (ALTO RISCO)**"
-}
+# =====================
+# LEITURAS BÁSICAS
+# =====================
+def sequencia(h):
+    if len(h) < 2:
+        return None, 0
+    c = h[0]
+    n = 1
+    for x in h[1:]:
+        if x == c:
+            n += 1
+        else:
+            break
+    return c, n
 
-# =============================
-# SESSION STATE
-# =============================
-if "hist" not in st.session_state:
-    st.session_state.hist = []
+def dupla_alternada(h):
+    if len(h) < 6:
+        return False
+    return (
+        h[0] == h[1] and
+        h[2] == h[3] and
+        h[0] != h[2]
+    )
 
-# =============================
-# MOTOR DE PADRÕES (COMPLETO)
-# =============================
-def detectar_padrao(hist):
-    if len(hist) < 3:
-        return "Sem leitura", "⏸️ AGUARDAR", 50
+def empate_ancora(h):
+    return len(h) >= 3 and h[1] == "🟡" and h[0] == h[2]
 
-    h = hist[-15:]
+def falso_padrao(h):
+    if len(h) < 5:
+        return False
+    return h[0] != h[1] and h[1] != h[2] and h[2] != h[3]
 
-    # 1 Alternância simples
-    if len(h) >= 4 and all(h[i] != h[i+1] for i in range(len(h)-1) if h[i] != 'T'):
-        return "Alternância Simples", SUGESTAO[h[-1]], 58
+# =====================
+# MOTOR PROFISSIONAL
+# =====================
+def analisar(h):
+    if len(h) < 6:
+        return "CAOS", None, 1, "🔴 BLOQUEADO"
 
-    # 2 Alternância dupla
-    if h[-4:] in (["P","P","B","B"], ["B","B","P","P"]):
-        return "Alternância Dupla", SUGESTAO[h[-1]], 60
+    cor, tam = sequencia(h)
 
-    # 3 Repetição curta
-    if h[-1] == h[-2] != "T":
-        return "Repetição Curta", "⏸️ AGUARDAR", 54
+    if falso_padrao(h):
+        return "FALSO PADRÃO", None, 2, "🔴 ARMADILHA"
 
-    # 4 Repetição confirmada
-    if h[-1] == h[-2] == h[-3] != "T":
-        return "Repetição Confirmada", SUGESTAO[h[-1]], 63
+    if tam >= 7:
+        return "SATURAÇÃO", None, 9, "🔴 SAIR"
 
-    # 5 Sequência longa
-    if len(h) >= 5 and len(set(h[-5:])) == 1 and h[-1] != "T":
-        return "Sequência Longa", "⚠️ ALERTA DE QUEBRA", 55
+    if tam >= 5:
+        return "PADRÃO MADURO", cor, 8, "⚠️ ÚLTIMA ENTRADA"
 
-    # 6 Quebra seca
-    if h[-3] == h[-2] != h[-1] and h[-1] != "T":
-        return "Quebra Seca", "⏸️ AGUARDAR", 50
+    if tam >= 3:
+        return "SEQUÊNCIA SIMPLES", cor, 7, "🟢 ENTRAR"
 
-    # 7 Quebra falsa
-    if len(h) >= 4 and h[-4] == h[-3] == h[-1] != h[-2]:
-        return "Quebra Falsa", "🚫 NÃO INVERTER", 52
+    if empate_ancora(h):
+        return "EMPATE ÂNCORA", h[0], 6, "🟡 ENTRADA CURTA"
 
-    # 8 Surf curto
-    if h[-6:] in (["P","B","B","P","P","B"], ["B","P","P","B","B","P"]):
-        return "Surf Curto", SUGESTAO[h[-1]], 61
+    if dupla_alternada(h):
+        return "DUPLA ALTERNADA", h[0], 7, "🟢 ENTRAR"
 
-    # 9 Surf médio
-    if h[-6:] in (["P","P","B","B","P","P"], ["B","B","P","P","B","B"]):
-        return "Surf Médio", SUGESTAO[h[-1]], 62
+    return "FORMAÇÃO", None, 4, "🕒 AGUARDAR"
 
-    # 10 Surf longo
-    if len(h) >= 9 and h[-9:] in (
-        ["P","P","P","B","B","B","P","P","P"],
-        ["B","B","B","P","P","P","B","B","B"]
-    ):
-        return "Surf Longo", SUGESTAO[h[-1]], 64
+# =====================
+# INTERFACE
+# =====================
+st.title("🎴 Football Studio – Leitura de Jogador Profissional")
 
-    # 11 Ciclo 2-2
-    if h[-4:] in (["P","P","B","B"], ["B","B","P","P"]):
-        return "Ciclo 2-2", SUGESTAO[h[-1]], 60
+c1, c2 = st.columns([1,2])
 
-    # 12 Ciclo 3-2
-    if h[-5:] in (["P","P","P","B","B"], ["B","B","B","P","P"]):
-        return "Ciclo 3-2", SUGESTAO[h[-1]], 60
+with c1:
+    st.subheader("🎮 Entrada Manual")
+    if st.button("🔴 Vermelho", use_container_width=True): add("🔴")
+    if st.button("🔵 Azul", use_container_width=True): add("🔵")
+    if st.button("🟡 Empate", use_container_width=True): add("🟡")
+    if st.button("♻️ Resetar Mesa", use_container_width=True):
+        st.session_state.h = []
 
-    # 13 Ciclo 3-3
-    if h[-6:] in (["P","P","P","B","B","B"], ["B","B","B","P","P","P"]):
-        return "Ciclo 3-3", SUGESTAO[h[-1]], 63
+with c2:
+    st.subheader("📊 Histórico (recente ➜ antigo)")
+    for i in range(0, len(st.session_state.h), 9):
+        st.write(" ".join(st.session_state.h[i:i+9]))
 
-    # 14 Empate isolado
-    if h[-1] == "T" and h[-2] != "T":
-        return "Empate Isolado", "⏸️ AGUARDAR", 50
-
-    # 15 Empate âncora
-    if h[-2] == "T" and h[-1] in ["P","B"]:
-        return "Empate Âncora", SUGESTAO[h[-1]], 62
-
-    # 16 Empate antecipador
-    if h[-1] == "T" and h[-2] == h[-3] == h[-4] != "T":
-        return "Empate Antecipador", "⚠️ INVERSÃO POSSÍVEL", 65
-
-    # 17 Duplo empate
-    if h[-2:] == ["T","T"]:
-        return "Duplo Empate", "🚫 PAUSAR", 48
-
-    # 18 Zigue-zague quebrado
-    if h[-5:] in (["P","B","P","P","B"], ["B","P","B","B","P"]):
-        return "Zigue-Zague Quebrado", "🚫 ARMADILHA", 46
-
-    # 19 Caos total
-    return "Caos Total", "🚫 NÃO OPERAR", 45
-
-# =============================
-# INPUT MANUAL
-# =============================
-st.subheader("🎯 Inserir resultado")
-
-c1, c2, c3 = st.columns(3)
-
-if c1.button("🔵 Player"):
-    st.session_state.hist.append("P")
-
-if c2.button("🔴 Banker"):
-    st.session_state.hist.append("B")
-
-if c3.button("🟡 Empate"):
-    st.session_state.hist.append("T")
-
-# =============================
-# HISTÓRICO VISUAL
-# =============================
 st.divider()
-st.subheader("📜 Histórico (mais recente à esquerda)")
 
-hist_visual = st.session_state.hist[::-1]
-emoji_hist = [EMOJIS[h] for h in hist_visual]
+estado, sugestao, nivel, acao = analisar(st.session_state.h)
 
-st.markdown(" ".join(emoji_hist))
+st.subheader("🧠 Diagnóstico Profissional")
+st.markdown(f"""
+**Estado:** `{estado}`  
+**Nível de Leitura:** `{nivel}/9`  
+**Ação do Sistema:** **{acao}**
+""")
 
-# =============================
-# ANÁLISE
-# =============================
-if st.session_state.hist:
-    padrao, sugestao, prob = detectar_padrao(st.session_state.hist)
+if sugestao:
+    st.success(f"🎯 Sugestão atual: **{sugestao}**")
 
-    st.divider()
-    st.subheader("📊 Leitura Atual")
-
-    st.write(f"**Padrão detectado:** {padrao}")
-    st.write(f"**Probabilidade:** {prob}%")
-
-    if "NÃO OPERAR" in sugestao or prob < 50:
-        st.error(sugestao)
-    elif "AGUARDAR" in sugestao or "PAUSAR" in sugestao:
-        st.warning(sugestao)
-    else:
-        st.success(sugestao)
-
-# =============================
-# RESET
-# =============================
-st.divider()
-if st.button("♻️ Resetar sessão"):
-    st.session_state.hist = []
+st.caption("""
+⚠️ Este sistema replica a leitura dos jogadores experientes:
+poucas entradas, risco controlado, saída antecipada.
+Não prevê cartas. Não força apostas.
+""")
