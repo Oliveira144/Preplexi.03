@@ -17,14 +17,12 @@ def analisar_padrao(historico):
     
     stats = Counter(historico)
     
-    # SHOE PESADA (screenshot)
     if len(historico) <= 12:
         dom = max(stats, key=stats.get)
         dom_cnt = stats[dom]
         if dom_cnt >= 4 and rec2 == ["T", opp]:
             return emoji[opp], "SHOE " + dom.upper() + " PESADA + TIE", 95, "SHOE"
     
-    # REPETICAO
     streak = 1
     for i in range(2, 7):
         if len(historico) >= i and historico[-i] == ultimo:
@@ -35,16 +33,13 @@ def analisar_padrao(historico):
     if streak >= 3:
         return emoji[ultimo], "REPETICAO " + str(streak), 90, "REP"
     
-    # ALTERNANCIA
     trocas = sum(1 for i in range(len(historico)-1) if historico[i] != historico[i+1])
     if len(historico) >= 6 and trocas / len(historico) > 0.7:
         return emoji[opp], "ALTERNANCIA", 85, "ALT"
     
-    # EMPATE
     if ultimo == "T":
         return "PAUSA", "EMPATE", 0, "TIE"
     
-    # QUEBRA
     if len(rec4) == 4 and rec4[:3] == [rec4[0]] * 3 and rec4[-1] != rec4[0]:
         return "PAUSA", "QUEBRA SECA", 0, "BREAK"
     
