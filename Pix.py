@@ -1,116 +1,170 @@
 import streamlit as st
-from collections import Counter
 
-st.set_page_config(page_title="Football Studio Pro", layout="wide")
+# =============================
+# CONFIGURAÇÃO DA PÁGINA
+# =============================
+st.set_page_config(page_title="Football Studio – Sistema Elite", layout="centered")
 
-emoji = {"R": "🔴", "B": "🔵", "T": "🟡"}
+st.title("🎴 Football Studio – SISTEMA ELITE COMPLETO")
+st.caption("Leitura profissional • padrões • empates • decisão visual")
 
-def analisar_padrao(historico):
-    if len(historico) < 3:
-        return "AGUARDAR", "Minimo 3 resultados", 0, "INSUFICIENTE"
-    
-    ultimo = historico[-1]
-    rec4 = historico[-4:]
-    rec3 = historico[-3:]
-    rec2 = historico[-2:]
-    opp = "R" if ultimo == "B" else "B"
-    
-    stats = Counter(historico)
-    
-    if len(historico) <= 12:
-        dom = max(stats, key=stats.get)
-        dom_cnt = stats[dom]
-        if dom_cnt >= 4 and rec2 == ["T", opp]:
-            return emoji[opp], "SHOE " + dom.upper() + " PESADA + TIE", 95, "SHOE"
-    
-    streak = 1
-    for i in range(2, 7):
-        if len(historico) >= i and historico[-i] == ultimo:
-            streak += 1
-        else:
-            break
-    
-    if streak >= 3:
-        return emoji[ultimo], "REPETICAO " + str(streak), 90, "REP"
-    
-    trocas = sum(1 for i in range(len(historico)-1) if historico[i] != historico[i+1])
-    if len(historico) >= 6 and trocas / len(historico) > 0.7:
-        return emoji[opp], "ALTERNANCIA", 85, "ALT"
-    
-    if ultimo == "T":
-        return "PAUSA", "EMPATE", 0, "TIE"
-    
-    if len(rec4) == 4 and rec4[:3] == [rec4[0]] * 3 and rec4[-1] != rec4[0]:
-        return "PAUSA", "QUEBRA SECA", 0, "BREAK"
-    
-    return emoji[opp], "BASICO", 60, "BASE"
+# =============================
+# MAPAS VISUAIS
+# =============================
+EMOJIS = {
+    "P": "🔵",
+    "B": "🔴",
+    "T": "🟡"
+}
 
-def mostrar_historico(h):
-    if not h:
-        return "Clique nos botoes"
-    rev = h[::-1]
-    linhas = []
-    for i in range(0, len(rev), 12):
-        linha = rev[i:i+12]
-        linhas.append("".join(emoji.get(r, "?") for r in linha))
-    return "
-".join(linhas)
+SUGESTAO = {
+    "P": "🔵 **APOSTAR PLAYER**",
+    "B": "🔴 **APOSTAR BANKER**",
+    "T": "🟡 **EMPATE (ALTO RISCO)**"
+}
 
-if "historico" not in st.session_state:
-    st.session_state.historico = []
+# =============================
+# SESSION STATE
+# =============================
+if "hist" not in st.session_state:
+    st.session_state.hist = []
 
-st.title("🏆 Football Studio - Analise Profissional")
+# =============================
+# MOTOR DE PADRÕES (COMPLETO)
+# =============================
+def detectar_padrao(hist):
+    if len(hist) < 3:
+        return "Sem leitura", "⏸️ AGUARDAR", 50
 
-col_esq, col_dir = st.columns([3, 1])
+    h = hist[-15:]
 
-with col_esq:
-    st.subheader("🎮 Adicionar Resultado")
-    
-    col_r, col_a, col_e = st.columns(3)
-    with col_r:
-        if st.button("🔴 Vermelho", use_container_width=True):
-            st.session_state.historico.append("R")
-            st.rerun()
-    with col_a:
-        if st.button("🔵 Azul", use_container_width=True):
-            st.session_state.historico.append("B")
-            st.rerun()
-    with col_e:
-        if st.button("🟡 Empate", use_container_width=True):
-            st.session_state.historico.append("T")
-            st.rerun()
-    
-    st.markdown("---")
-    st.subheader("📈 Historico Completo")
-    st.code(mostrar_historico(st.session_state.historico))
-    
-    progresso = min(len(st.session_state.historico) / 64, 1.0)
-    st.progress(progresso)
-    st.caption(f"Shoe: {len(st.session_state.historico)}/64")
+    # 1 Alternância simples
+    if len(h) >= 4 and all(h[i] != h[i+1] for i in range(len(h)-1) if h[i] != 'T'):
+        return "Alternância Simples", SUGESTAO[h[-1]], 58
 
-with col_dir:
-    st.subheader("🎯 Sugestao de Aposta")
-    
-    if st.session_state.historico:
-        sugestao, motivo, confianca, padrao = analisar_padrao(st.session_state.historico)
-        
-        stats = Counter(st.session_state.historico)
-        
-        if confianca > 0:
-            st.success(f"### **{sugestao}**")
-        else:
-            st.error(f"### **{sugestao}**")
-        
-        st.info(f"**{motivo}**")
-        st.caption(f"{confianca}% | {padrao}")
-        
-        st.metric("Vermelho", stats["R"])
-        st.metric("Azul", stats["B"])
-        st.metric("Empates", stats["T"])
+    # 2 Alternância dupla
+    if h[-4:] in (["P","P","B","B"], ["B","B","P","P"]):
+        return "Alternância Dupla", SUGESTAO[h[-1]], 60
+
+    # 3 Repetição curta
+    if h[-1] == h[-2] != "T":
+        return "Repetição Curta", "⏸️ AGUARDAR", 54
+
+    # 4 Repetição confirmada
+    if h[-1] == h[-2] == h[-3] != "T":
+        return "Repetição Confirmada", SUGESTAO[h[-1]], 63
+
+    # 5 Sequência longa
+    if len(h) >= 5 and len(set(h[-5:])) == 1 and h[-1] != "T":
+        return "Sequência Longa", "⚠️ ALERTA DE QUEBRA", 55
+
+    # 6 Quebra seca
+    if h[-3] == h[-2] != h[-1] and h[-1] != "T":
+        return "Quebra Seca", "⏸️ AGUARDAR", 50
+
+    # 7 Quebra falsa
+    if len(h) >= 4 and h[-4] == h[-3] == h[-1] != h[-2]:
+        return "Quebra Falsa", "🚫 NÃO INVERTER", 52
+
+    # 8 Surf curto
+    if h[-6:] in (["P","B","B","P","P","B"], ["B","P","P","B","B","P"]):
+        return "Surf Curto", SUGESTAO[h[-1]], 61
+
+    # 9 Surf médio
+    if h[-6:] in (["P","P","B","B","P","P"], ["B","B","P","P","B","B"]):
+        return "Surf Médio", SUGESTAO[h[-1]], 62
+
+    # 10 Surf longo
+    if len(h) >= 9 and h[-9:] in (
+        ["P","P","P","B","B","B","P","P","P"],
+        ["B","B","B","P","P","P","B","B","B"]
+    ):
+        return "Surf Longo", SUGESTAO[h[-1]], 64
+
+    # 11 Ciclo 2-2
+    if h[-4:] in (["P","P","B","B"], ["B","B","P","P"]):
+        return "Ciclo 2-2", SUGESTAO[h[-1]], 60
+
+    # 12 Ciclo 3-2
+    if h[-5:] in (["P","P","P","B","B"], ["B","B","B","P","P"]):
+        return "Ciclo 3-2", SUGESTAO[h[-1]], 60
+
+    # 13 Ciclo 3-3
+    if h[-6:] in (["P","P","P","B","B","B"], ["B","B","B","P","P","P"]):
+        return "Ciclo 3-3", SUGESTAO[h[-1]], 63
+
+    # 14 Empate isolado
+    if h[-1] == "T" and h[-2] != "T":
+        return "Empate Isolado", "⏸️ AGUARDAR", 50
+
+    # 15 Empate âncora
+    if h[-2] == "T" and h[-1] in ["P","B"]:
+        return "Empate Âncora", SUGESTAO[h[-1]], 62
+
+    # 16 Empate antecipador
+    if h[-1] == "T" and h[-2] == h[-3] == h[-4] != "T":
+        return "Empate Antecipador", "⚠️ INVERSÃO POSSÍVEL", 65
+
+    # 17 Duplo empate
+    if h[-2:] == ["T","T"]:
+        return "Duplo Empate", "🚫 PAUSAR", 48
+
+    # 18 Zigue-zague quebrado
+    if h[-5:] in (["P","B","P","P","B"], ["B","P","B","B","P"]):
+        return "Zigue-Zague Quebrado", "🚫 ARMADILHA", 46
+
+    # 19 Caos total
+    return "Caos Total", "🚫 NÃO OPERAR", 45
+
+# =============================
+# INPUT MANUAL
+# =============================
+st.subheader("🎯 Inserir resultado")
+
+c1, c2, c3 = st.columns(3)
+
+if c1.button("🔵 Player"):
+    st.session_state.hist.append("P")
+
+if c2.button("🔴 Banker"):
+    st.session_state.hist.append("B")
+
+if c3.button("🟡 Empate"):
+    st.session_state.hist.append("T")
+
+# =============================
+# HISTÓRICO VISUAL
+# =============================
+st.divider()
+st.subheader("📜 Histórico (mais recente à esquerda)")
+
+hist_visual = st.session_state.hist[::-1]
+emoji_hist = [EMOJIS[h] for h in hist_visual]
+
+st.markdown(" ".join(emoji_hist))
+
+# =============================
+# ANÁLISE
+# =============================
+if st.session_state.hist:
+    padrao, sugestao, prob = detectar_padrao(st.session_state.hist)
+
+    st.divider()
+    st.subheader("📊 Leitura Atual")
+
+    st.write(f"**Padrão detectado:** {padrao}")
+    st.write(f"**Probabilidade:** {prob}%")
+
+    if "NÃO OPERAR" in sugestao or prob < 50:
+        st.error(sugestao)
+    elif "AGUARDAR" in sugestao or "PAUSAR" in sugestao:
+        st.warning(sugestao)
     else:
-        st.warning("Adicione resultados")
+        st.success(sugestao)
 
-st.markdown("---")
-if st.button("🗑️ Limpar Tudo", use_container_width=True):
-    st.session_state.historico = []
-    st.rerun()
+# =============================
+# RESET
+# =============================
+st.divider()
+if st.button("♻️ Resetar sessão"):
+    st.session_state.hist = []
