@@ -1,114 +1,87 @@
 import streamlit as st
 
-st.set_page_config("🎴 Football Studio PRO", layout="wide")
+st.set_page_config(page_title="Football Studio PRO", layout="centered")
 
-# =====================
-# MEMÓRIA
-# =====================
-if "h" not in st.session_state:
-    st.session_state.h = []
+st.title("🎴 Football Studio – Leitura Profissional de Mesa")
 
-def add(r):
-    st.session_state.h.insert(0, r)
-    st.session_state.h = st.session_state.h[:120]
+# Inicialização
+if "historico" not in st.session_state:
+    st.session_state.historico = []
 
-# =====================
-# LEITURAS BÁSICAS
-# =====================
-def sequencia(h):
-    if len(h) < 2:
-        return None, 0
-    c = h[0]
-    n = 1
-    for x in h[1:]:
-        if x == c:
-            n += 1
-        else:
-            break
-    return c, n
+# Função de leitura profissional
+def analisar_mesa(h):
+    if len(h) < 3:
+        return None, "⏳ Aguardando dados suficientes"
 
-def dupla_alternada(h):
-    if len(h) < 6:
-        return False
-    return (
-        h[0] == h[1] and
-        h[2] == h[3] and
-        h[0] != h[2]
-    )
+    # PÓS-QUEBRA LIMPA
+    if len(h) >= 3:
+        if h[2] != h[1] and h[1] == h[0]:
+            return h[0], "🟢 Entrada pós-quebra (respiração curta)"
 
-def empate_ancora(h):
-    return len(h) >= 3 and h[1] == "🟡" and h[0] == h[2]
+    # EMPATE ÂNCORA
+    if len(h) >= 3:
+        if h[1] == "🟡" and h[0] == h[2]:
+            return h[0], "🟢 Confirmação imediata pós-empate"
 
-def falso_padrao(h):
-    if len(h) < 5:
-        return False
-    return h[0] != h[1] and h[1] != h[2] and h[2] != h[3]
+    # PRIMEIRA REPETIÇÃO
+    if len(h) >= 3:
+        if h[0] == h[1] and h[1] != h[2]:
+            return h[0], "🟢 Primeira repetição (timing correto)"
 
-# =====================
-# MOTOR PROFISSIONAL
-# =====================
-def analisar(h):
-    if len(h) < 6:
-        return "CAOS", None, 1, "🔴 BLOQUEADO"
+    # BLOQUEIOS
+    if h[0] == h[1] == h[2]:
+        return None, "⛔ Topo de padrão detectado (virada iminente)"
 
-    cor, tam = sequencia(h)
+    if h[0] != h[1] and h[1] != h[2]:
+        return None, "⛔ Alternância falsa (armadilha comum)"
 
-    if falso_padrao(h):
-        return "FALSO PADRÃO", None, 2, "🔴 ARMADILHA"
+    return None, "⛔ Timing desfavorável — sem entrada"
 
-    if tam >= 7:
-        return "SATURAÇÃO", None, 9, "🔴 SAIR"
+# Botões de entrada
+st.subheader("🎯 Inserir Resultado")
 
-    if tam >= 5:
-        return "PADRÃO MADURO", cor, 8, "⚠️ ÚLTIMA ENTRADA"
+col1, col2, col3 = st.columns(3)
 
-    if tam >= 3:
-        return "SEQUÊNCIA SIMPLES", cor, 7, "🟢 ENTRAR"
+with col1:
+    if st.button("🔴 CASA"):
+        st.session_state.historico.insert(0, "🔴")
 
-    if empate_ancora(h):
-        return "EMPATE ÂNCORA", h[0], 6, "🟡 ENTRADA CURTA"
+with col2:
+    if st.button("🔵 FORA"):
+        st.session_state.historico.insert(0, "🔵")
 
-    if dupla_alternada(h):
-        return "DUPLA ALTERNADA", h[0], 7, "🟢 ENTRAR"
+with col3:
+    if st.button("🟡 EMPATE"):
+        st.session_state.historico.insert(0, "🟡")
 
-    return "FORMAÇÃO", None, 4, "🕒 AGUARDAR"
+# Limite de histórico
+st.session_state.historico = st.session_state.historico[:90]
 
-# =====================
-# INTERFACE
-# =====================
-st.title("🎴 Football Studio – Leitura de Jogador Profissional")
+# Exibir histórico
+st.subheader("📜 Histórico (mais recente → antigo)")
 
-c1, c2 = st.columns([1,2])
+if st.session_state.historico:
+    linhas = [
+        st.session_state.historico[i:i+9]
+        for i in range(0, len(st.session_state.historico), 9)
+    ]
+    for linha in linhas[:10]:
+        st.write(" ".join(linha))
+else:
+    st.info("Nenhum resultado inserido ainda.")
 
-with c1:
-    st.subheader("🎮 Entrada Manual")
-    if st.button("🔴 Vermelho", use_container_width=True): add("🔴")
-    if st.button("🔵 Azul", use_container_width=True): add("🔵")
-    if st.button("🟡 Empate", use_container_width=True): add("🟡")
-    if st.button("♻️ Resetar Mesa", use_container_width=True):
-        st.session_state.h = []
+# Análise
+st.subheader("🧠 Leitura da Mesa")
 
-with c2:
-    st.subheader("📊 Histórico (recente ➜ antigo)")
-    for i in range(0, len(st.session_state.h), 9):
-        st.write(" ".join(st.session_state.h[i:i+9]))
+entrada, motivo = analisar_mesa(st.session_state.historico)
 
-st.divider()
+if entrada:
+    st.success(f"🎯 SUGESTÃO: Apostar em {entrada}")
+    st.write(f"📌 Motivo: {motivo}")
+else:
+    st.warning(f"🚫 SEM ENTRADA")
+    st.write(f"📌 Motivo: {motivo}")
 
-estado, sugestao, nivel, acao = analisar(st.session_state.h)
-
-st.subheader("🧠 Diagnóstico Profissional")
-st.markdown(f"""
-**Estado:** `{estado}`  
-**Nível de Leitura:** `{nivel}/9`  
-**Ação do Sistema:** **{acao}**
-""")
-
-if sugestao:
-    st.success(f"🎯 Sugestão atual: **{sugestao}**")
-
-st.caption("""
-⚠️ Este sistema replica a leitura dos jogadores experientes:
-poucas entradas, risco controlado, saída antecipada.
-Não prevê cartas. Não força apostas.
-""")
+# Rodapé
+st.markdown("---")
+st.caption("⚠️ Sistema profissional: menos entradas, mais proteção. Timing é tudo.")
